@@ -20,7 +20,7 @@ pytest
 flake8
 
 # # For WoE/IV
-# xverse 
-# woe 
-# scorecardpy
+xverse 
+woe 
+scorecardpy
 optbinning
