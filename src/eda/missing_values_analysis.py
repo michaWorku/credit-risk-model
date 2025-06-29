@@ -11,7 +11,7 @@ if str(project_root) not in sys.path:
     sys.path.append(str(project_root))
 
 from src.data_loader import load_data # Corrected import path
-from src.data_processing import preprocess_data # New import for preprocessing
+from src.data_preparation import preprocess_data # New import for preprocessing
 
 
 # Abstract Base Class for Missing Values Analysis

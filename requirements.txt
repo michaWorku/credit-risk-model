@@ -18,3 +18,9 @@ python-dotenv
 # GitHub Actions (testing and linting support, optional)
 pytest
 flake8
+
+# # For WoE/IV
+xverse 
+woe 
+scorecardpy
+optbinning
