@@ -10,7 +10,7 @@ import os # For dummy data creation
 # Add current directory to path for import of data_loader
 sys.path.append(str(Path(__file__).parent.parent.parent)) # Adjust path to project root
 from src.data_loader import load_data # Corrected import path
-from src.data_processing import preprocess_data # New import for preprocessing
+from src.data_preparation import preprocess_data # New import for preprocessing
 
 # Abstract Base Class for Outlier Analysis Strategy
 # -------------------------------------------------
