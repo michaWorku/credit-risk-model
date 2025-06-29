@@ -19,7 +19,8 @@ python-dotenv
 pytest
 flake8
 
-# For WoE/IV
-xverse 
-woe 
-scorecardpy
+# # For WoE/IV
+# xverse 
+# woe 
+# scorecardpy
+optbinning
