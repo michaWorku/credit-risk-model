@@ -5,6 +5,7 @@ import sys
 # Add current directory to path for import of data_loader
 sys.path.append(str(Path(__file__).parent.parent.parent)) # Adjust path to project root
 from src.data_loader import load_data
+from src.data_processing import preprocess_data # New import for preprocessing
 
 
 # Abstract Base Class for Data Inspection Strategies
@@ -119,14 +120,14 @@ if __name__ == "__main__":
     # Define the path to the raw Kaggle data file
     project_root = Path(__file__).parent.parent.parent # Navigates to credit-risk-model/
     raw_data_file_path = project_root / "data" / "raw" / "data.csv"
-
+    
     # Load the data
-    df = load_data(raw_data_file_path, delimiter=',')
+    # df = load_data(raw_data_file_path, delimiter=',')
+    df_raw = load_data(raw_data_file_path)  # Load processed data for inspection 
 
-    if not df.empty:
-        # Convert 'Amount' and 'Value' to numeric, coercing errors
-        df['Amount'] = pd.to_numeric(df['Amount'], errors='coerce')
-        df['Value'] = pd.to_numeric(df['Value'], errors='coerce')
+    if not df_raw.empty:
+        # Preprocess the data using the dedicated data_processing script
+        df = preprocess_data(df_raw)
 
         print("\n--- Basic Data Inspection Examples (Xente Data) ---")
 
