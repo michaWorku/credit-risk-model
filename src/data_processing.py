@@ -14,6 +14,7 @@ if str(project_root) not in sys.path:
     sys.path.append(str(project_root))
 
 from src.data_loader import load_data # Assuming data_loader is in src/
+from src.target_engineering import RFMEngineer, ProxyTargetEngineer # Import both RFMEngineer and ProxyTargetEngineer
 
 # Conditional import for scorecardpy and definition of WOETransformer
 try:
@@ -295,6 +296,9 @@ class FinalPreprocessing(BaseEstimator, TransformerMixin):
                                                 'TransactionHour_sin', 'TransactionHour_cos',
                                                 'TransactionDayOfWeek_sin', 'TransactionDayOfWeek_cos'
                                               ]))
+        # Add RFM features to numerical columns for scaling
+        all_expected_numerical_cols.extend(['Recency', 'Frequency', 'Monetary'])
+
         if 'scorecardpy' in sys.modules:
             woe_cols = [f'{col}_woe' for col in self.categorical_cols if f'{col}_woe' in current_cols]
             all_expected_numerical_cols.extend(woe_cols)
@@ -367,6 +371,9 @@ class FinalPreprocessing(BaseEstimator, TransformerMixin):
                                                 'TransactionHour_sin', 'TransactionHour_cos',
                                                 'TransactionDayOfWeek_sin', 'TransactionDayOfWeek_cos'
                                               ]))
+        # Add RFM features to numerical columns for scaling
+        all_expected_numerical_cols.extend(['Recency', 'Frequency', 'Monetary'])
+
         if 'scorecardpy' in sys.modules:
             woe_cols = [f'{col}_woe' for col in self.categorical_cols if f'{col}_woe' in X.columns]
             all_expected_numerical_cols.extend(woe_cols)
@@ -389,7 +396,7 @@ class FinalPreprocessing(BaseEstimator, TransformerMixin):
         X_transformed_df = X_transformed_df[expected_final_columns]
 
         for col in X_transformed_df.columns:
-            is_base_numeric = any(num_col_prefix in col for num_col_prefix in ['Amount', 'Value', 'PricingStrategy', 'Total_', 'Avg_', 'Count_', 'Std_', 'TransactionHour', 'TransactionDay', 'TransactionMonth', 'TransactionYear', 'TransactionDayOfWeek', 'TransactionWeekOfYear', 'TransactionQuarter', '_sin', '_cos', 'IsRefund'])
+            is_base_numeric = any(num_col_prefix in col for num_col_prefix in ['Amount', 'Value', 'PricingStrategy', 'Total_', 'Avg_', 'Count_', 'Std_', 'TransactionHour', 'TransactionDay', 'TransactionMonth', 'TransactionYear', 'TransactionDayOfWeek', 'TransactionWeekOfYear', 'TransactionQuarter', '_sin', '_cos', 'IsRefund', 'Recency', 'Frequency', 'Monetary'])
             is_woe_col = '_woe' in col and 'scorecardpy' in sys.modules
             is_ohe_col = False
             if 'scorecardpy' not in sys.modules:
@@ -398,11 +405,11 @@ class FinalPreprocessing(BaseEstimator, TransformerMixin):
                         is_ohe_col = True
                         break
 
-            if is_base_numeric or is_woe_col or is_ohe_col:
+            if is_base_numeric or is_woe_col or is_ohe_col or col == 'is_high_risk': # Explicitly check for is_high_risk
                 X_transformed_df[col] = pd.to_numeric(X_transformed_df[col], errors='coerce').astype(float) # Explicitly cast to float
                 if X_transformed_df[col].isnull().any():
-                    if is_woe_col or is_ohe_col:
-                        X_transformed_df[col] = X_transformed_df[col].fillna(0.0) # Fill with 0.0 for OHE/WoE missing
+                    if is_woe_col or is_ohe_col or col == 'is_high_risk': # Fill with 0.0 for OHE/WoE/is_high_risk missing
+                        X_transformed_df[col] = X_transformed_df[col].fillna(0.0)
                     else:
                         if not X_transformed_df[col].isnull().all():
                             X_transformed_df[col] = X_transformed_df[col].fillna(X_transformed_df[col].median())
@@ -425,6 +432,9 @@ class FinalPreprocessing(BaseEstimator, TransformerMixin):
             'TransactionHour_sin', 'TransactionHour_cos',
             'TransactionDayOfWeek_sin', 'TransactionDayOfWeek_cos'
         ])
+        
+        # Add RFM features and the new target variable
+        expected_cols.extend(['Recency', 'Frequency', 'Monetary', 'is_high_risk'])
 
         if 'scorecardpy' in sys.modules:
             expected_woe_cols = [f'{col}_woe' for col in self.categorical_cols if col in X_initial_cols]
@@ -442,7 +452,9 @@ class FinalPreprocessing(BaseEstimator, TransformerMixin):
                 expected_ohe_cols.extend(['ChannelId_Mobile', 'ChannelId_Web'])
             expected_cols.extend(expected_ohe_cols)
         
-        passthrough_id_cols = [c for c in self.id_columns if c != self.time_column and c in X_initial_cols]
+        # Include all ID columns in the expected output, regardless of whether they were in the initial input.
+        # If they were missing, they will be added as NaNs by the transform method.
+        passthrough_id_cols = [c for c in self.id_columns if c != self.time_column]
         expected_cols.extend(passthrough_id_cols)
 
         return sorted(list(set(expected_cols)))
@@ -472,7 +484,16 @@ class DataProcessor:
                 amount_col='Amount',
                 transaction_id_col='TransactionId'
             )),
-            ('time_feature_extraction', TimeFeatureExtractor(time_column=self.time_column)),
+            # NEW ORDER: RFMEngineer before TimeFeatureExtractor
+            ('rfm_engineering', RFMEngineer(
+                n_clusters=3,
+                random_state=42,
+                customer_id_col='CustomerId',
+                transaction_id_col='TransactionId',
+                transaction_time_col='TransactionStartTime', # RFMEngineer needs this column
+                amount_col='Amount'
+            )),
+            ('time_feature_extraction', TimeFeatureExtractor(time_column=self.time_column)), # This will drop TransactionStartTime
         ]
 
         if 'scorecardpy' in sys.modules:
@@ -487,7 +508,7 @@ class DataProcessor:
         pipeline_steps.append(('final_preprocessing', FinalPreprocessing(
             numerical_cols=self.numerical_cols,
             categorical_cols=self.categorical_cols,
-            time_column=self.time_column,
+            time_column=self.time_column, # This column will be dropped by TimeFeatureExtractor, but kept for schema consistency
             id_columns=self.id_columns,
             target_column=self.target_column
         )))
@@ -538,7 +559,7 @@ if __name__ == "__main__":
         id_columns = ['TransactionId', 'BatchId', 'AccountId', 'SubscriptionId', 'CustomerId', 'ProductId', 'CurrencyCode', 'CountryCode']
         numerical_features = ['Amount', 'Value', 'PricingStrategy']
         categorical_features = ['ProviderId', 'ProductCategory', 'ChannelId']
-        time_column = 'TransactionStartTime'
+        time_column = 'TransactionStartTime' # This column will be dropped by TimeFeatureExtractor
 
         processor = DataProcessor(
             numerical_cols=numerical_features,
@@ -548,7 +569,7 @@ if __name__ == "__main__":
             target_column='FraudResult'
         )
 
-        print("Fitting and transforming data...")
+        print("Fitting and transforming data (including RFM and proxy target engineering)...")
         X_processed = processor.fit_transform(X, y)
 
         print("\nProcessed DataFrame head:")
@@ -578,6 +599,15 @@ if __name__ == "__main__":
         else:
             if 'ProductCategory_Electronics' in X_processed.columns:
                 print(f"ProductCategory_Electronics head (OHE):\n{X_processed['ProductCategory_Electronics'].head()}")
+        
+        if 'is_high_risk' in X_processed.columns:
+            print(f"\n'is_high_risk' value counts:\n{X_processed['is_high_risk'].value_counts()}")
+            print(f"'is_high_risk' dtype: {X_processed['is_high_risk'].dtype}")
+        
+        if 'Recency' in X_processed.columns:
+            print(f"\nRecency head:\n{X_processed['Recency'].head()}")
+            print(f"Frequency head:\n{X_processed['Frequency'].head()}")
+            print(f"Monetary head:\n{X_processed['Monetary'].head()}")
 
     else:
         print("Raw DataFrame is empty. Cannot perform feature engineering.")
