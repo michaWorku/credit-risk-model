@@ -10,31 +10,39 @@ if str(project_root) not in sys.path:
 
 from src.models.base_model_strategy import BaseModelStrategy
 
+
 class XGBoostStrategy(BaseModelStrategy):
     """
-    Concrete strategy for XGBoost model (can be Regressor or Classifier).
+    Concrete strategy for XGBoost model (Regressor or Classifier).
     """
-    def __init__(self, objective: str = 'reg:squarederror', n_estimators: int = 100, random_state: int = 42, **kwargs):
+    def __init__(self, model_type: str = 'regressor', random_state: int = 42, **kwargs):
         """
         Initializes the XGBoost model.
 
         Parameters:
-        objective (str): The learning objective. 'reg:squarederror' for regression,
-                         'binary:logistic' for binary classification.
-        n_estimators (int): Number of boosting rounds.
+        model_type (str): Type of model to use: 'regressor' or 'classifier'.
+                          For classification, 'binary:logistic' objective is typically used.
         random_state (int): Random seed for reproducibility.
         kwargs: Additional parameters for xgb.XGBRegressor or xgb.XGBClassifier.
         """
         super().__init__()
-        self.objective = objective
-        self._name = "XGBoost Regressor" if 'reg' in objective else "XGBoost Classifier"
+        self.model_type = model_type
+        self._name = "XGBoost Regressor" if model_type == 'regressor' else "XGBoost Classifier"
 
-        if 'reg' in objective:
-            self.model = xgb.XGBRegressor(objective=objective, n_estimators=n_estimators, random_state=random_state, **kwargs)
-        elif 'binary' in objective or 'multi' in objective:
-            self.model = xgb.XGBClassifier(objective=objective, n_estimators=n_estimators, random_state=random_state, **kwargs)
+        if model_type == 'regressor':
+            self.model = xgb.XGBRegressor(random_state=random_state, **kwargs)
+        elif model_type == 'classifier':
+            # Default objective for binary classification is 'binary:logistic'
+            # Ensure use_label_encoder=False and eval_metric for modern XGBoost
+            self.model = xgb.XGBClassifier(
+                objective='binary:logistic',
+                eval_metric='logloss', # Common metric for binary classification
+                use_label_encoder=False, # Suppress warning for future versions
+                random_state=random_state,
+                **kwargs
+            )
         else:
-            raise ValueError(f"Unsupported objective: {objective}. Use 'reg:squarederror', 'binary:logistic', etc.")
+            raise ValueError(f"Unsupported model_type: {model_type}. Choose 'regressor' or 'classifier'.")
 
     @property
     def name(self) -> str:
@@ -49,7 +57,7 @@ class XGBoostStrategy(BaseModelStrategy):
         y (pd.Series): Target variable for training.
         """
         if X.empty or y.empty:
-            print("Warning: Training data (X or y) is empty for XGBoost. Skipping training.")
+            print(f"Warning: Training data (X or y) is empty for {self.name}. Skipping training.")
             return
 
         print(f"Training {self.name} model...")
@@ -64,17 +72,17 @@ class XGBoostStrategy(BaseModelStrategy):
         X (pd.DataFrame): Features for prediction.
 
         Returns:
-        np.ndarray: Array of predictions. For classification, returns class probabilities if objective is binary,
-                    otherwise raw predictions. For binary classification, use predict_proba for probabilities.
+        np.ndarray: Array of predictions. For classification, returns class probabilities for positive class.
         """
         if self.model is None:
             raise RuntimeError(f"{self.name} model not trained. Call train() first.")
         if X.empty:
-            print("Warning: Prediction data (X) is empty for XGBoost. Returning empty array.")
+            print(f"Warning: Prediction data (X) is empty for {self.name}. Returning empty array.")
             return np.array([])
             
-        if isinstance(self.model, xgb.XGBClassifier) and 'binary' in self.objective:
-            # For binary classification, return probabilities of the positive class
+        if self.model_type == 'classifier':
+            # For classification, return probabilities for the positive class (class 1)
+            # This is crucial for metrics like ROC-AUC
             return self.model.predict_proba(X)[:, 1]
         return self.model.predict(X)
 
