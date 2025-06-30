@@ -1,6 +1,7 @@
 # Core Data Handling
 pandas
 numpy
+sidetable
 
 # EDA & Visualization
 matplotlib
@@ -10,6 +11,7 @@ plotly
 # Machine Learning
 scikit-learn
 xgboost
+mlflow
 
 # Model Interpretability
 shap
@@ -28,3 +30,5 @@ xverse
 woe 
 scorecardpy
 optbinning
+
+tqdm # added for progress bars
