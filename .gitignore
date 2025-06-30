@@ -209,6 +209,7 @@ __marimo__/
 # Data directories
 data/raw/
 data/processed/
+data/*
 
 # Operating System files
 .DS_Store
