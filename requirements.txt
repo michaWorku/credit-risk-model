@@ -9,7 +9,11 @@ plotly
 
 # Machine Learning
 scikit-learn
+xgboost
 
+# Model Interpretability
+shap
+lime
 # Dev Tools
 ipykernel
 jupyter
