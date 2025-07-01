@@ -1,0 +1,40 @@
+# Ignore Python virtual environments
+venv/
+.venv/
+
+# Ignore MLflow tracking data (mounted as a volume, not part of image)
+mlruns/
+
+# Ignore data directories (mounted as volumes, not part of image)
+data/
+
+# Ignore Python cache directories
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# Ignore editor/IDE specific files
+.vscode/
+.idea/
+*.swp
+*~
+
+# Ignore build artifacts
+dist/
+build/
+*.egg-info/
+
+# Ignore logs
+logs/
+*.log
+
+# Ignore .git directory
+.git/
+
+# Ignore Docker-specific files if they are not needed inside the image
+Dockerfile
+docker-compose.yml
+.dockerignore
