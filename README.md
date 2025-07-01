@@ -78,3 +78,203 @@ In a regulated financial context, the balance often favors **interpretability an
 1. Beginning with interpretable models (e.g., Logistic Regression with WoE) as a baseline and for initial deployment due to their transparency.
 2. Exploring more complex models for potential performance gains, but always integrating robust explainability frameworks and rigorous validation to ensure compliance with regulatory and business transparency requirements.
 3. The ultimate model choice will depend on the specific regulatory environment, the bank's risk appetite, and the performance benefits weighed against the complexity and explainability costs.
+
+## **Project Overview**
+
+This project focuses on building a credit risk probability model leveraging alternative data. It encompasses data loading, robust preprocessing, model training with hyperparameter tuning, evaluation, and interpretability, all integrated with MLflow for experiment tracking and a FastAPI for serving predictions.
+
+**Key Features:**
+
+- **Data Ingestion & Loading:** Efficiently loads raw transaction data from CSV files.
+- **Data Preprocessing:** Implements a comprehensive data processing pipeline including handling negative amounts, aggregating features, extracting time-based features, and handling categorical variables (with fallback to One-Hot Encoding if `scorecardpy` is unavailable). It also engineers RFM (Recency, Frequency, Monetary) features and a proxy target variable (`is_high_risk`) for credit risk.
+- **Model Training & Evaluation:** Utilizes a strategy pattern to train and evaluate multiple classification models (Logistic Regression, Decision Tree, Random Forest, XGBoost) with hyperparameter tuning using GridSearchCV. Models are evaluated based on standard classification metrics including ROC-AUC, Accuracy, Precision, Recall, and F1-score.
+- **MLflow Integration:** Tracks experiments, parameters, metrics, and models using MLflow for reproducibility and comparison. The best model is registered in the MLflow Model Registry.
+- **Model Interpretability:** Provides functionalities for global (SHAP) and local (LIME) model explanations to understand feature importance and individual predictions.
+- **FastAPI Prediction Service:** A lightweight and efficient API built with FastAPI for serving real-time credit risk predictions. The API loads the pre-trained model and processor directly for fast inference.
+- **Dockerization:** The entire prediction service is containerized using Docker and `docker-compose` for easy deployment and scalability.
+
+## **Table of Contents**
+
+- [Installation](#installation)
+- [Usage](#usage)
+- [Project Structure](#project-structure)
+- [Development and Testing](#development-and-testing)
+- [Contributing](#contributing)
+- [License](#license)
+
+## **Installation**
+
+### **Prerequisites**
+
+- Python 3.9+
+- Git
+- `pip` (Python package installer)
+- Docker and Docker Compose (for API deployment)
+
+### **Steps**
+
+1. **Clone the repository:**
+    
+    ```
+    git clone https://github.com/michaWorku/credit-risk-model.git
+    cd credit-risk-model # Or your project's root directory
+    
+    ```
+    
+    *(If you created the project in your current directory, you can skip `git clone` and `cd`.)*
+    
+2. **Create and activate a virtual environment:**
+    
+    ```
+    python -m venv .venv
+    source .venv/bin/activate  # On Linux/macOS
+    # .venv\Scripts\activate    # On Windows
+    
+    ```
+    
+3. **Install dependencies:**
+    
+    ```
+    pip install -r requirements.txt
+    
+    ```
+    
+
+## **Usage**
+
+This project provides scripts to train, evaluate, predict, and interpret the credit risk model.
+
+### **1. Train and Register Models**
+
+This script trains various models, performs hyperparameter tuning, evaluates them, and logs/registers the best model with MLflow. It also exports the best model and the data processor for direct API deployment.
+
+```
+python scripts/run_train.py
+
+```
+
+*(After execution, check the `mlruns/` directory for MLflow tracking data and the newly created `exported_model/` directory for `best_model.pkl` and `data_processor.pkl`.)*
+
+### **2. Make Predictions**
+
+Use the registered model from MLflow to make predictions on new data.
+
+```
+python scripts/run_predict.py
+
+```
+
+*(This script will generate a dummy `new_transactions.csv` if it doesn't exist and save predictions to `data/predictions/new_data_predictions.csv`.)*
+
+### **3. Interpret Model Predictions**
+
+Utilize SHAP and LIME to understand global feature importance and local prediction explanations.
+
+```
+python scripts/run_interpret.py
+
+```
+
+*(This script will generate plots for SHAP summary and individual LIME explanations. Plots will be displayed and may need to be closed manually.)*
+
+### **4. Run the Prediction API (Dockerized)**
+
+Deploy the FastAPI prediction service using Docker Compose. This service loads the manually exported model and processor.
+
+```
+# Build the Docker image (only needed the first time or after code changes)
+sudo docker-compose build --no-cache
+
+# Run the service
+sudo docker-compose up
+
+```
+
+*(The API will be accessible at `http://localhost:8000`. You can test the `/health` endpoint or send prediction requests to `/predict`.)*
+
+## **Project Structure**
+
+```
+.
+├── .github/                         # GitHub specific configurations (e.g., CI/CD workflows)
+│   └── workflows/
+│       └── ci.yml                   # CI/CD workflow for tests and linting
+├── .gitignore                       # Specifies intentionally untracked files to ignore
+├── .dockerignore                    # Specifies files to exclude from Docker build context
+├── Dockerfile                       # Dockerfile for building the FastAPI application image
+├── docker-compose.yml               # Docker Compose configuration for running the API service
+├── requirements.txt                 # Python dependencies
+├── README.md                        # Project overview, installation, usage
+├── exported_model/                  # Directory for manually exported model and data processor (.pkl files)
+│   ├── best_model.pkl
+│   └── data_processor.pkl
+├── src/                             # Core source code for the project
+│   ├── api/                         # FastAPI application and Pydantic models
+│   │   ├── __init__.py
+│   │   ├── main.py                  # FastAPI application entry point
+│   │   └── pydantic_models.py       # Pydantic schemas for API requests/responses
+│   ├── data_loader.py               # Module for loading raw data
+│   ├── data_preparation.py          # Module for inital data preprocessing and preparation
+│   ├── data_processing.py           # Module for data preprocessing pipeline
+│   ├── models/                      # Machine learning model strategies and interpretation
+│   │   ├── base_model_strategy.py   # Abstract base class for model strategies
+│   │   ├── decision_tree_strategy.py
+│   │   ├── linear_regression_strategy.py
+│   │   ├── logistic_regression_strategy.py
+│   │   ├── model_evaluator.py       # Functions for model evaluation metrics
+│   │   ├── model_interpreter.py     # SHAP and LIME interpretation
+│   │   ├── model_trainer.py         # Context for training models using strategies
+│   │   ├── random_forest_strategy.py
+│   │   └── xgboost_strategy.py
+│   ├── target_engineering.py        # Module for RFM and proxy target engineering
+│   └── __init__.py                  # Marks src as a Python package
+├── scripts/                         # Standalone utility scripts
+│   ├── run_interpret.py             # Script to run model interpretation
+│   ├── run_predict.py               # Script to run predictions using MLflow model
+│   └── run_train.py                 # Script to train, log, register, and export models
+├── data/                            # Data storage
+│   ├── raw/                         # Original raw data
+│   │   ├── data.csv
+│   │   ├── data.xlsx
+│   │   ├── new_transactions.csv
+│   │   ├── Xente_Variable_Definitions.csv
+│   │   └── Xente_Variable_Definitions.xlsx
+│   ├── processed/                   # Processed data
+│   │   └── processed_data.csv
+│   ├── predictions/                 # Saved prediction outputs
+│   │   └── new_data_predictions.csv
+│   ├── results/                     # Placeholder for additional results/outputs
+│   └── README.md                    # README for data directory
+└── .venv/                           # Python virtual environment (ignored by Git)
+
+```
+
+## **Development and Testing**
+
+- **Running Tests:**
+    
+    ```
+    pytest tests/
+    
+    ```
+    
+    *(Ensure you have `pytest` installed, typically via `pip install -r requirements.txt`)*
+    
+- **Linting:***(You might need to install a linter like `flake8` or `black` via `pip install`)*
+    
+    ```
+    # Example for flake8
+    flake8 src/ scripts/ tests/
+    # Example for black (auto-formatter)
+    black src/ scripts/ tests/
+    
+    ```
+    
+
+## **Contributing**
+
+Contributions are welcome! Please feel free to open issues or submit pull requests.
+
+## **License**
+
+This project is licensed under the [MIT License](https://www.google.com/search?q=LICENSE).
