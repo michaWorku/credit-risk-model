@@ -1,0 +1,5 @@
+TransactionId,BatchId,AccountId,SubscriptionId,CustomerId,CurrencyCode,CountryCode,ProviderId,ProductId,ProductCategory,ChannelId,Amount,Value,TransactionStartTime,PricingStrategy
+T101,B10,A10,S10,C10,UGX,256,P1,ProdD,Electronics,Web,60.0,60.0,2024-01-01 08:00:00,0
+T102,B10,A11,S11,C11,UGX,256,P2,ProdE,Airtime,Mobile,110.0,110.0,2024-01-05 13:00:00,1
+T103,B11,A12,S12,C12,UGX,256,P3,ProdF,Financial Services,Web,400.0,400.0,2024-01-10 10:00:00,2
+T104,B11,A10,S10,C10,UGX,256,P1,ProdD,Electronics,Mobile,90.0,90.0,2024-01-12 11:00:00,0
