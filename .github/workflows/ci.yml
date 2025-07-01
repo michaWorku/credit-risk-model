@@ -1,0 +1,46 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main # Trigger on pushes to the main branch
+  pull_request:
+    branches:
+      - main # Also trigger on pull requests to main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest # Use the latest Ubuntu runner
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4 # Action to checkout your code
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12' # Specify the Python version
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Flake8 Linter
+        run: |
+          # Stop the build if there are Python syntax errors or undefined names
+          # E203: whitespace before ':' (often conflicting with Black)
+          # W503: line break before binary operator (often conflicting with Black)
+          # F401: 'module' imported but unused (often happens with __init__.py or temporary imports)
+          # E501: line too long (often better handled by auto-formatters like Black)
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        # If you use Black for formatting, you might want to run Black's check mode instead/additionally:
+        # pip install black
+        # black --check .
+
+      - name: Run Pytest Unit Tests
+        run: |
+          pytest tests/
+        
