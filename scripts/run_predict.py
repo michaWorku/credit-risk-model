@@ -6,7 +6,6 @@ import sys
 from tqdm import tqdm 
 
 # Add project root to sys.path to allow absolute imports
-# Assuming scripts/run_predict.py is one level down from project root
 project_root = Path(__file__).parent.parent
 if str(project_root) not in sys.path:
     sys.path.append(str(project_root))

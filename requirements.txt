@@ -21,6 +21,9 @@ ipykernel
 jupyter
 python-dotenv
 
+fastapi
+uvicorn
+
 # GitHub Actions (testing and linting support, optional)
 pytest
 flake8
@@ -32,3 +35,7 @@ scorecardpy
 optbinning
 
 tqdm # added for progress bars
+
+mlflow
+# sqlalchemy
+cloudpickle

@@ -1,0 +1,21 @@
+services:
+  credit-risk-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount the local mlruns directory into the container
+      # This allows the API to access the models registered by your local MLflow runs
+      - ./mlruns:/app/mlruns
+      # Mount the data directory so the API can access raw data for processor fitting
+      - ./data:/app/data
+    environment:
+      # These environment variables are passed to the FastAPI app
+      - MLFLOW_TRACKING_URI=file:///app/mlruns
+      - REGISTERED_MODEL_NAME=CreditRiskClassifier
+      - MODEL_VERSION=latest
+      - RAW_DATA_PATH_FOR_PROCESSOR_FIT=/app/data/raw/data.csv
+    # Optional: Restart policy to keep the service running
+    restart: unless-stopped
