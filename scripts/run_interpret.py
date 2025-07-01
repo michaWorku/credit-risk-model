@@ -8,7 +8,6 @@ from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
 # Add project root to sys.path to allow absolute imports
-# Assuming scripts/run_interpret.py is one level down from project root
 project_root = Path(__file__).parent.parent
 if str(project_root) not in sys.path:
     sys.path.append(str(project_root))
@@ -104,7 +103,7 @@ def run_model_interpretation(
         model_version_obj = client.get_model_version(registered_model_name, actual_model_version)
         
         # FIX: Change 'model' to 'best_model' as per how the final model is logged in run_train.py
-        sklearn_model_uri = f"runs:/{model_version_obj.run_id}/best_model"
+        sklearn_model_uri = f"runs:/{model_version_obj.run_id}/model" # This should point to "model" artifact
         sklearn_loaded_model = mlflow.sklearn.load_model(sklearn_model_uri)
         print("Scikit-learn model loaded successfully for interpretation.")
 
@@ -144,4 +143,3 @@ def run_model_interpretation(
 
 if __name__ == "__main__":
     run_model_interpretation()
-
