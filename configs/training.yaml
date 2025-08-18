@@ -1,0 +1,10 @@
+data:
+  numerical_cols: ["Amount", "Value", "PricingStrategy"]
+  categorical_cols: ["ProviderId", "ProductCategory", "ChannelId"]
+  time_col: "TransactionStartTime"
+  id_cols: ["TransactionId", "CustomerId", "AccountId"]
+  target_col: "FraudResult"
+features:
+  use_woe: false
+  n_clusters: 3
+  random_state: 42
