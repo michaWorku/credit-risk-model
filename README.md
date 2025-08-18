@@ -210,12 +210,15 @@ sudo docker-compose up
 │   └── data_processor.pkl
 ├── src/                             # Core source code for the project
 │   ├── api/                         # FastAPI application and Pydantic models
-│   │   ├── __init__.py
 │   │   ├── main.py                  # FastAPI application entry point
 │   │   └── pydantic_models.py       # Pydantic schemas for API requests/responses
-│   ├── data_loader.py               # Module for loading raw data
-│   ├── data_preparation.py          # Module for inital data preprocessing and preparation
-│   ├── data_processing.py           # Module for data preprocessing pipeline
+|   ├──   data/
+|   │   ├── loaders.py              # Module for loading raw data
+|   │   ├── preparation.py          # Module for inital data preprocessing and preparation
+|   │   └── processing.py           # Module for data preprocessing pipeline
+|   ├── features
+|   │   ├── transformers.py          # Module for HandleNegativeAmount, AggregateFeatures, TimeFeatureExtractor
+|   │   └── target_engineering.py    # Module for RFM and proxy target engineering
 │   ├── models/                      # Machine learning model strategies and interpretation
 │   │   ├── base_model_strategy.py   # Abstract base class for model strategies
 │   │   ├── decision_tree_strategy.py
@@ -226,12 +229,19 @@ sudo docker-compose up
 │   │   ├── model_trainer.py         # Context for training models using strategies
 │   │   ├── random_forest_strategy.py
 │   │   └── xgboost_strategy.py
-│   ├── target_engineering.py        # Module for RFM and proxy target engineering
-│   └── __init__.py                  # Marks src as a Python package
 ├── scripts/                         # Standalone utility scripts
 │   ├── run_interpret.py             # Script to run model interpretation
 │   ├── run_predict.py               # Script to run predictions using MLflow model
 │   └── run_train.py                 # Script to train, log, register, and export models
+|   tests/
+|    ├── data/
+|    │   ├── test_processing.py         # tests for DataProcessor + transformers
+|    │   └── test_transformers.py       # tests for HandleNegativeAmount, AggregateFeatures, TimeFeatureExtractor, WOETransformer
+|    ├── features/
+|    │   └── test_target_engineering.py # tests for RFMEngineer and other feature engineering modules
+|    ├── pipelines/
+|    │   └── test_pipeline.py           # end-to-end pipeline tests (integration-level)
+|    └── conftest.py                    # shared fixtures like sample_raw_df, data_processor_instance, rfm_engineer_instance
 ├── data/                            # Data storage
 │   ├── raw/                         # Original raw data
 │   │   ├── data.csv
