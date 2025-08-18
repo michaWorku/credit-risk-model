@@ -7,13 +7,18 @@ import numpy as np
 import warnings
 import sys
 from pathlib import Path
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 # Add project root to sys.path to allow absolute imports
-project_root = Path(__file__).parent.parent
+project_root = Path(__file__).parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.append(str(project_root))
 
-from src.data_loader import load_data
+from src.data.loaders import load_data
 
 # Suppress all warnings for cleaner output, especially from KMeans
 warnings.filterwarnings('ignore')
@@ -64,7 +69,7 @@ class RFMEngineer(BaseEstimator, TransformerMixin):
         """
         required_cols = [self.customer_id_col, self.transaction_time_col, self.amount_col, self.transaction_id_col]
         if not all(col in df.columns for col in required_cols):
-            print(f"Warning: Missing one or more required columns for RFM calculation: {required_cols}. Returning empty RFM DataFrame.")
+            logger.warning(f"Warning: Missing one or more required columns for RFM calculation: {required_cols}. Returning empty RFM DataFrame.")
             return pd.DataFrame(columns=[self.customer_id_col] + self.rfm_columns)
         
         # Ensure transaction_time_col is datetime and amount_col is numeric
@@ -76,7 +81,7 @@ class RFMEngineer(BaseEstimator, TransformerMixin):
         df_cleaned = df.dropna(subset=[self.customer_id_col, self.transaction_time_col, self.amount_col, self.transaction_id_col]).copy()
         
         if df_cleaned.empty:
-            print("Warning: DataFrame is empty after cleaning for RFM calculation. Returning empty RFM DataFrame.")
+            logger.warning("Warning: DataFrame is empty after cleaning for RFM calculation. Returning empty RFM DataFrame.")
             return pd.DataFrame(columns=[self.customer_id_col] + self.rfm_columns)
 
         rfm_df = df_cleaned.groupby(self.customer_id_col).agg(
@@ -110,9 +115,9 @@ class RFMEngineer(BaseEstimator, TransformerMixin):
         Returns:
             self: Fitted transformer.
         """
-        print("RFMEngineer.fit called.")
+        logger.info("RFMEngineer.fit called.")
         if X.empty:
-            print("Warning: Input DataFrame is empty for RFMEngineer.fit. Skipping fit.")
+            logger.warning("Warning: Input DataFrame is empty for RFMEngineer.fit. Skipping fit.")
             self.fitted_ = False
             return self
 
@@ -125,7 +130,7 @@ class RFMEngineer(BaseEstimator, TransformerMixin):
             X_temp_for_date.dropna(subset=[self.transaction_time_col], inplace=True)
         
         if X_temp_for_date.empty:
-            print("Warning: No valid transaction times to determine snapshot date. Skipping fit.")
+            logger.warning("Warning: No valid transaction times to determine snapshot date. Skipping fit.")
             self.fitted_ = False
             return self
         self.snapshot_date = X_temp_for_date[self.transaction_time_col].max() + datetime.timedelta(days=1)
@@ -134,7 +139,7 @@ class RFMEngineer(BaseEstimator, TransformerMixin):
         # 1. Calculate RFM Metrics
         rfm_data = self._calculate_rfm(X.copy(), self.snapshot_date)
         if rfm_data.empty:
-            print("RFM calculation resulted in empty DataFrame during fit. Cannot proceed with clustering.")
+            logger.warning("RFM calculation resulted in empty DataFrame during fit. Cannot proceed with clustering.")
             self.fitted_ = False
             return self
 
@@ -170,7 +175,7 @@ class RFMEngineer(BaseEstimator, TransformerMixin):
         # The cluster with the highest Engagement_Score is the least engaged (high-risk)
         self.high_risk_cluster_label = self.cluster_centroids['Engagement_Score'].idxmax()
         
-        print(f"RFMEngineer fitted. High-risk cluster identified: {self.high_risk_cluster_label}")
+        logger.info(f"RFMEngineer fitted. High-risk cluster identified: {self.high_risk_cluster_label}")
         self.fitted_ = True
         return self
 
@@ -187,9 +192,9 @@ class RFMEngineer(BaseEstimator, TransformerMixin):
                           and 'is_high_risk' columns.
                           Returns original DataFrame if not fitted or empty.
         """
-        print("RFMEngineer.transform called.")
+        logger.info("RFMEngineer.transform called.")
         if not self.fitted_:
-            print("Warning: RFMEngineer not fitted. Returning original DataFrame without RFM or 'is_high_risk'.")
+            logger.warning("Warning: RFMEngineer not fitted. Returning original DataFrame without RFM or 'is_high_risk'.")
             # Ensure 'is_high_risk' is present and defaulted to 0 if not fitted
             if 'is_high_risk' not in X.columns:
                 X['is_high_risk'] = 0
@@ -200,7 +205,7 @@ class RFMEngineer(BaseEstimator, TransformerMixin):
             return X.copy()
         
         if X.empty:
-            print("Warning: Input DataFrame is empty for RFMEngineer.transform. Returning empty DataFrame.")
+            logger.warning("Warning: Input DataFrame is empty for RFMEngineer.transform. Returning empty DataFrame.")
             # Ensure expected columns are present in the empty DataFrame
             empty_df = X.copy()
             empty_df['is_high_risk'] = []
@@ -215,7 +220,7 @@ class RFMEngineer(BaseEstimator, TransformerMixin):
         rfm_data = self._calculate_rfm(X_copy, self.snapshot_date)
         
         if rfm_data.empty:
-            print("RFM calculation resulted in empty DataFrame during transform. Adding 'is_high_risk' as 0 and returning.")
+            logger.warning("RFM calculation resulted in empty DataFrame during transform. Adding 'is_high_risk' as 0 and returning.")
             if 'is_high_risk' not in X_copy.columns:
                 X_copy['is_high_risk'] = 0
             for col in self.rfm_columns:
@@ -276,7 +281,7 @@ class ProxyTargetEngineer(BaseEstimator, TransformerMixin):
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
         df_copy = X.copy()
         if self.fraud_result_col not in df_copy.columns:
-            print(f"Warning: '{self.fraud_result_col}' column not found. Cannot create proxy target 'is_high_risk'.")
+            logger.warning(f"Warning: '{self.fraud_result_col}' column not found. Cannot create proxy target 'is_high_risk'.")
             df_copy['is_high_risk'] = 0 # Default to low risk if fraud result is unknown
             return df_copy
 
@@ -294,7 +299,7 @@ if __name__ == "__main__":
     df_raw = load_data(raw_data_file_path, delimiter=',')
 
     if df_raw is not None and not df_raw.empty:
-        print("Successfully loaded data for target engineering.")
+        logger.info("Successfully loaded data for target engineering.")
 
         # --- Prepare data for RFM and Proxy Target Engineering ---
         # Ensure 'Amount' is numeric and positive
@@ -305,7 +310,7 @@ if __name__ == "__main__":
         df_raw['TransactionId'] = df_raw['TransactionId'].astype(str)
 
         # Example 1: Using RFMEngineer
-        print("\n--- Applying RFM Engineering and Risk Labeling ---")
+        logger.info("\n--- Applying RFM Engineering and Risk Labeling ---")
         rfm_engineer = RFMEngineer(
             customer_id_col='CustomerId',
             transaction_id_col='TransactionId',
@@ -316,43 +321,43 @@ if __name__ == "__main__":
         # Use fit_transform directly for demonstration
         df_with_risk_label = rfm_engineer.fit_transform(df_raw.copy())
 
-        print("\nDataFrame head after RFM and Risk Labeling:")
+        logger.info("\nDataFrame head after RFM and Risk Labeling:")
         # Select relevant columns for clear output
         display_cols_rfm = ['CustomerId', 'TransactionStartTime', 'Amount', 'Recency', 'Frequency', 'Monetary', 'is_high_risk']
         # Filter for existing columns to avoid KeyError if some are not generated due to data issues
         existing_display_cols_rfm = [col for col in display_cols_rfm if col in df_with_risk_label.columns]
-        print(df_with_risk_label[existing_display_cols_rfm].head())
+        logger.info(df_with_risk_label[existing_display_cols_rfm].head())
         
         if 'Recency' in df_with_risk_label.columns:
-            print(f"\nRecency head:\n{df_with_risk_label['Recency'].head()}")
+            logger.info(f"\nRecency head:\n{df_with_risk_label['Recency'].head()}")
         if 'Frequency' in df_with_risk_label.columns:
-            print(f"Frequency head:\n{df_with_risk_label['Frequency'].head()}")
+            logger.info(f"Frequency head:\n{df_with_risk_label['Frequency'].head()}")
         if 'Monetary' in df_with_risk_label.columns:
-            print(f"Monetary head:\n{df_with_risk_label['Monetary'].head()}")
+            logger.info(f"Monetary head:\n{df_with_risk_label['Monetary'].head()}")
         
         if 'is_high_risk' in df_with_risk_label.columns:
-            print(f"\n'is_high_risk' value counts after RFM:\n{df_with_risk_label['is_high_risk'].value_counts()}")
-            print(f"\n'is_high_risk' dtype: {df_with_risk_label['is_high_risk'].dtype}")
-        print("\nInfo on DataFrame with 'is_high_risk' (checking dtype and non-null count):")
+            logger.info(f"\n'is_high_risk' value counts after RFM:\n{df_with_risk_label['is_high_risk'].value_counts()}")
+            logger.info(f"\n'is_high_risk' dtype: {df_with_risk_label['is_high_risk'].dtype}")
+        logger.info("\nInfo on DataFrame with 'is_high_risk' (checking dtype and non-null count):")
         df_with_risk_label.info()
 
 
         # Example 2: Using ProxyTargetEngineer (if FraudResult is available)
         if 'FraudResult' in df_raw.columns:
-            print("\n--- Applying Proxy Target Engineering (FraudResult based) ---")
+            logger.info("\n--- Applying Proxy Target Engineering (FraudResult based) ---")
             proxy_engineer = ProxyTargetEngineer(fraud_result_col='FraudResult')
             df_with_proxy_target = proxy_engineer.fit_transform(df_raw.copy())
-            print("\nDataFrame head after Proxy Target Labeling:")
+            logger.info("\nDataFrame head after Proxy Target Labeling:")
             # Select relevant columns for clear output
             display_cols_proxy = ['TransactionId', 'FraudResult', 'is_high_risk']
             existing_display_cols_proxy = [col for col in display_cols_proxy if col in df_with_proxy_target.columns]
-            print(df_with_proxy_target[existing_display_cols_proxy].head())
+            logger.info(df_with_proxy_target[existing_display_cols_proxy].head())
             
             if 'is_high_risk' in df_with_proxy_target.columns:
-                print(f"\n'is_high_risk' value counts after Proxy Target:\n{df_with_proxy_target['is_high_risk'].value_counts()}")
+                logger.info(f"\n'is_high_risk' value counts after Proxy Target:\n{df_with_proxy_target['is_high_risk'].value_counts()}")
         else:
-            print("\nSkipping Proxy Target Engineering: 'FraudResult' column not found in raw data.")
+            logger.warning("\nSkipping Proxy Target Engineering: 'FraudResult' column not found in raw data.")
 
     else:
-        print("DataFrame is empty or could not be loaded. Cannot run target engineering examples.")
+        logger.warning("DataFrame is empty or could not be loaded. Cannot run target engineering examples.")
 

@@ -1,5 +1,10 @@
 from pathlib import Path
 import pandas as pd
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 def load_data(file_path: Path, delimiter: str = ',', file_type: str = 'csv') -> pd.DataFrame:
     """
@@ -18,38 +23,32 @@ def load_data(file_path: Path, delimiter: str = ',', file_type: str = 'csv') -> 
         pd.DataFrame: The loaded DataFrame, or an empty DataFrame if loading fails.
     """
     if not file_path.is_file():
-        print(f"Error: File not found at {file_path}")
-        return pd.DataFrame()
+        logger.error("File not found: %s", file_path)
+        raise FileNotFoundError(file_path)
 
     try:
-        if file_type == 'csv':
-            df = pd.read_csv(file_path, delimiter=delimiter)
-        elif file_type == 'txt':
-            df = pd.read_csv(file_path, delimiter=delimiter) # pd.read_csv can handle txt with delimiter
-        else:
-            print(f"Error: Unsupported file type '{file_type}'. Only 'csv' and 'txt' are supported.")
-            return pd.DataFrame()
-
-        print(f"Successfully loaded data from {file_path}")
-        return df
+        if file_type in {"csv", "txt"}:
+            return pd.read_csv(file_path, delimiter=delimiter)
+        raise ValueError(f"Unsupported file type: {file_type}")
     except Exception as e:
-        print(f"Error loading data from {file_path}: {e}")
-        return pd.DataFrame()
+        logger.exception("Failed loading data: %s", e)
+        raise
 
 # Example usage (for independent testing of this script)
 if __name__ == "__main__":
     # Define the path to the raw Kaggle data file
     # Adjust this path if your project structure differs or if the file name is different
-    project_root = Path(__file__).parent.parent # Navigates to credit-risk-model/
+    project_root = Path(__file__).parent.parent.parent # Navigates to credit-risk-model/
     raw_data_file_path = project_root / "data" / "raw" / "data.csv"
 
     # Load the data
     df = load_data(raw_data_file_path, delimiter=',')
 
     if not df.empty:
-        print("\nDataFrame Head:")
-        print(df.head())
-        print("\nDataFrame Info:")
+        logger.info("Data loaded successfully.")
+        logger.info("\nDataFrame Head:")
+        logger.info(df.head())
+        logger.info("\nDataFrame Info:")
         df.info()
     else:
-        print("Failed to load data for example usage.")
+        logger.error("Failed to load data for example usage.")
